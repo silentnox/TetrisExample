@@ -37,15 +37,8 @@ class Figure {
 		shape = new int[dimension,dimension];
 
 		int index = 0;
-		//int rowSizeX = 0;
 		foreach( char s in data) {
-			//if (s  == '\n') {
-			//	//rowSizeX = 0;
-			//	//sizeY++;
-			//}
 			shape[index%sizeX,index/sizeX] = (s == '#') ? index % 2 + 2 : 0;
-			//rowSizeX++;
-			//sizeX = Math.Max(sizeX, rowSizeX);
 			index++;
 		}
 	}
@@ -92,6 +85,7 @@ interface IGameMode {
 	int[,] GetField();
 	Vector2Int GetFieldSize();
 	Figure GetActiveFigure();
+	bool IsGameOver();
 	void InitGameMode();
 	void ProcessUserCmd(Command cmd);
 	void Tick();
@@ -164,6 +158,10 @@ class GameMode1 : IGameMode {
 
 	public GameMode1() {
 		//fieldSize = new Vector2Int(10, 20);
+	}
+
+	virtual public bool IsGameOver() {
+		return gameOver;
 	}
 
 	virtual public Vector2Int GetFieldSize() {
@@ -277,15 +275,12 @@ class GameMode1 : IGameMode {
 
 		Vector2Int offset = DirectionToOffset(dir);
 
-		//figureOffset += offset;
 		figure.Move(offset);
 
-		//bool stuck = false;
 		bool stuck = IsFigureStuck(figure);
 		bool outOfBounds = IsFigureOutOfBounds(figure);
 
 		if(stuck) {
-			//figureOffset -= offset;
 			figure.Move(offset*-1);
 			UpdateFieldWithFigure(field, figure);
 			figure = null;
@@ -341,17 +336,9 @@ class GameMode1 : IGameMode {
 
 	void EleminateRows() {
 		int[,] newField = new int[fieldSize.x, fieldSize.y];
-		//if (ShouldShiftField()) {
-		//	for (int i = 0; i < fieldSize.x; i++) {
-		//		for (int j = fieldSize.y - 2; j >= 0; j--) {
-		//			field[i, j + 1] = field[i, j];
-		//		}
-		//	}
-		//}
 		int numNewRows = 0;
 		for( int i = fieldSize.y-1;i >= 0; i--) {
 			if(!ShouldEleminateRow(i)) {
-				//Array.Copy(field, i * fieldSize.x, newField, (fieldSize.y-numNewRows-1) * fieldSize.x, fieldSize.x);
 				CopyRow(field, i, newField, fieldSize.y - numNewRows - 1);
 				numNewRows += 1;
 			}
@@ -534,7 +521,7 @@ class Tetris {
 	}
 
 	public Tetris() {
-		ChangeGameMode(1);
+		ChangeGameMode(0);
 	}
 
 	public void InitTetris() {
@@ -572,7 +559,6 @@ class Tetris {
 
 		Vector2Int fieldSize = gameMode.GetFieldSize();
 		int [,] field = gameMode.GetField();
-		//Figure figure = gameMode.GetActiveFigure();
 
 		Vector2Int offset = new Vector2Int(Screen.width / 2 - fieldSize.x*cellSize/2, Screen.height / 2 - fieldSize.y * cellSize / 2);
 
@@ -580,10 +566,36 @@ class Tetris {
 		GUI.DrawTexture(backgroundRect, backgroundTexture);
 
 		DrawGrid(offset, field);
-		//DrawGrid(figure.position, figure.shape);
+
+		Rect labelRect = backgroundRect;
+		labelRect.center += new Vector2(labelRect.width+10, 0);
+
+		GUIStyle labelStyle = new GUIStyle();
+		labelStyle.fontSize = 20;
+		labelStyle.normal.textColor = Color.white;
+
+		GUI.Label(labelRect,
+			"Controls:\n" +
+			"1,2 - Switch mode\n" +
+			"P - pause, R - restart\n" +
+			"Left, Right arrows - move horizontally\n" +
+			"Up arrow or X - rotate clockwise\n" +
+			"Left control or Z - rotate counter-clockwise\n" +
+			"Down arrow - force land\n",
+			labelStyle);
 	}
 
 	public void RunFrame() {
+
+		if (Input.GetKeyDown(KeyCode.Alpha1)) {
+			ChangeGameMode(0);
+			return;
+		}
+
+		if (Input.GetKeyDown(KeyCode.Alpha2)) {
+			ChangeGameMode(1);
+			return;
+		}
 
 		if (Input.GetKeyDown(KeyCode.R)) {
 			Restart();
@@ -599,7 +611,7 @@ class Tetris {
 		}
 
 		Command command = GetCommandFromInput();
-		///lastCommand = command != Command.None ? command : lastCommand;
+		//lastCommand = command != Command.None ? command : lastCommand;
 		gameMode.ProcessUserCmd(command);
 		frameTimer -= Time.deltaTime;
 		if (frameTimer < 0) {
@@ -628,7 +640,7 @@ class Tetris {
 		}
 		if (Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.Z)) {
 			numKeys += 1;
-			cmd = Command.RotateCW;
+			cmd = Command.RotateCCW;
 		}
 		if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.Space)) {
 			numKeys += 1;
